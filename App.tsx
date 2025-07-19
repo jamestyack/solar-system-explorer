@@ -97,7 +97,7 @@ const App: React.FC = () => {
 
       <header className="absolute top-8 left-1/2 -translate-x-1/2 w-full px-4 text-center z-20 pointer-events-none">
         <h1 className="text-3xl md:text-5xl font-bold text-white tracking-wider" style={{ textShadow: '0 0 15px rgba(255,255,255,0.7), 0 0 5px rgba(255,255,255,0.5)' }}>
-          TrueHumanAI: Solar System Explorer
+          Planet Explorer
         </h1>
         <p className="text-lg md:text-xl text-gray-300 mt-1">
           Learn about our Solar System
