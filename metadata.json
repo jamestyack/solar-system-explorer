@@ -1,0 +1,6 @@
+{
+  "name": "Interactive Solar System Explorer",
+  "description": "A web-based game that allows you to explore and learn about the planets in our solar system through interactive visuals and AI-powered information.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
