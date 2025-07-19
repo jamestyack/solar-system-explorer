@@ -1,14 +1,14 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { PlanetInfo, PlanetName, QuizData } from "../types";
+import { FALLBACK_PLANET_INFO, FALLBACK_QUIZ_DATA } from "../fallbackData";
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
+let ai: GoogleGenAI | null = null;
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+if (API_KEY) {
+  ai = new GoogleGenAI({ apiKey: API_KEY });
+}
 
 const infoResponseSchema = {
   type: Type.OBJECT,
@@ -39,6 +39,16 @@ const quizResponseSchema = {
 };
 
 export const getPlanetInfo = async (planetName: PlanetName): Promise<PlanetInfo> => {
+  // If no API key or AI service is not available, use fallback data
+  if (!ai) {
+    console.warn(`No API key found, using fallback data for ${planetName}`);
+    const fallbackInfo = FALLBACK_PLANET_INFO[planetName];
+    if (fallbackInfo) {
+      return fallbackInfo;
+    }
+    throw new Error(`No fallback data available for ${planetName}`);
+  }
+
   try {
     const prompt = `Provide a fun and engaging summary for a student about the celestial body named ${planetName}. Include its most interesting features, information on its moons, its diameter, its distance from the sun, a fun fact, and the mythological origin of its name.`;
 
@@ -56,38 +66,66 @@ export const getPlanetInfo = async (planetName: PlanetName): Promise<PlanetInfo>
     return parsedJson as PlanetInfo;
   } catch (error) {
     console.error(`Error fetching data for ${planetName}:`, error);
-    throw new Error(`Could not retrieve information for ${planetName}.`);
+    console.warn(`Falling back to static data for ${planetName}`);
+    
+    // Use fallback data when API fails
+    const fallbackInfo = FALLBACK_PLANET_INFO[planetName];
+    if (fallbackInfo) {
+      return fallbackInfo;
+    }
+    
+    throw new Error(`Could not retrieve information for ${planetName} and no fallback data available.`);
   }
 };
 
 export const getPlanetQuiz = async (planetInfo: PlanetInfo): Promise<QuizData> => {
-    try {
-        const context = JSON.stringify(planetInfo);
-        const prompt = `Based only on the following information about the celestial body '${planetInfo.name}', create one multiple-choice quiz question.
-        Context: ${context}
-        
-        The question should test understanding of the provided information. Provide exactly four options: one correct answer and three plausible but incorrect answers.
-        Ensure the 'correctAnswer' value is an exact match to one of the strings in the 'options' array.`;
-
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: quizResponseSchema,
-            },
-        });
-
-        const jsonText = response.text.trim();
-        const parsedJson = JSON.parse(jsonText);
-
-        if (parsedJson.options.length !== 4 || !parsedJson.options.includes(parsedJson.correctAnswer)) {
-            console.error("Generated quiz data is invalid:", parsedJson);
-            throw new Error("Received invalid quiz data from API.");
-        }
-        return parsedJson as QuizData;
-    } catch (error) {
-        console.error(`Error fetching quiz for ${planetInfo.name}:`, error);
-        throw new Error(`Could not retrieve quiz for ${planetInfo.name}.`);
+  // If no API key or AI service is not available, use fallback data
+  if (!ai) {
+    console.warn(`No API key found, using fallback quiz data for ${planetInfo.name}`);
+    const fallbackQuizzes = FALLBACK_QUIZ_DATA[planetInfo.name];
+    if (fallbackQuizzes && fallbackQuizzes.length > 0) {
+      // Return a random quiz from the available fallback quizzes
+      return fallbackQuizzes[Math.floor(Math.random() * fallbackQuizzes.length)];
     }
+    throw new Error(`No fallback quiz data available for ${planetInfo.name}`);
+  }
+
+  try {
+    const context = JSON.stringify(planetInfo);
+    const prompt = `Based only on the following information about the celestial body '${planetInfo.name}', create one multiple-choice quiz question.
+    Context: ${context}
+    
+    The question should test understanding of the provided information. Provide exactly four options: one correct answer and three plausible but incorrect answers.
+    Ensure the 'correctAnswer' value is an exact match to one of the strings in the 'options' array.`;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: quizResponseSchema,
+        },
+    });
+
+    const jsonText = response.text.trim();
+    const parsedJson = JSON.parse(jsonText);
+
+    if (parsedJson.options.length !== 4 || !parsedJson.options.includes(parsedJson.correctAnswer)) {
+        console.error("Generated quiz data is invalid:", parsedJson);
+        throw new Error("Received invalid quiz data from API.");
+    }
+    return parsedJson as QuizData;
+  } catch (error) {
+    console.error(`Error fetching quiz for ${planetInfo.name}:`, error);
+    console.warn(`Falling back to static quiz data for ${planetInfo.name}`);
+    
+    // Use fallback data when API fails
+    const fallbackQuizzes = FALLBACK_QUIZ_DATA[planetInfo.name];
+    if (fallbackQuizzes && fallbackQuizzes.length > 0) {
+      // Return a random quiz from the available fallback quizzes
+      return fallbackQuizzes[Math.floor(Math.random() * fallbackQuizzes.length)];
+    }
+    
+    throw new Error(`Could not retrieve quiz for ${planetInfo.name} and no fallback data available.`);
+  }
 };
